@@ -3,14 +3,15 @@ module fir_filter (
     input signed [7:0] noisy_in,
     output reg signed [7:0] clean_out
 );
-    // Create an array of 8 registers (the "taps")
+    // Buffer for the 8-tap delay line; stores the most recent 8 samples
     reg signed [7:0] shift_reg [0:7];
     integer i;
     
-    // Sum needs to be wider (12 bits) to prevent overflow when adding eight 8-bit numbers
+    // Internal accumulator: defined as 12-bit to safely handle the worst-case 
+    // summation of eight 8-bit signed values without clipping or overflow.
     reg signed [11:0] sum; 
 
-    // Shift data through the registers on every clock cycle
+    // Data pipeline: Shifting samples through the register array on each clock edge
     always @(posedge clk) begin
         shift_reg[0] <= noisy_in;
         for (i = 1; i < 8; i = i + 1) begin
@@ -18,7 +19,7 @@ module fir_filter (
         end
     end
 
-    // Combinational logic to calculate the sum of all 8 taps
+    // Real-time summation: Aggregating all current taps to calculate the window total
     always @(*) begin
         sum = 0;
         for (i = 0; i < 8; i = i + 1) begin
@@ -26,7 +27,8 @@ module fir_filter (
         end
     end
 
-    // Divide by 8 (using arithmetic bit shift right by 3) to get the average
+    // Normalization: Dividing the total by 8 via a 3-bit arithmetic right shift.
+    // This provides a resource-efficient average for the final output.
     always @(posedge clk) begin
         clean_out <= sum >>> 3; 
     end
